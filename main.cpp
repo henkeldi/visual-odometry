@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cassert>
-#include <iostream>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -12,24 +11,14 @@ auto orb = cv::ORB::create();
 auto matcher = cv::BFMatcher(cv::NORM_HAMMING);
 
 std::tuple<cv::Mat, std::vector<cv::KeyPoint>, cv::Mat> extract_features(const cv::Mat&);
-
-void match_frames(
+std::tuple<cv::Mat, std::vector<cv::KeyPoint>, std::vector<cv::KeyPoint>>
+match_frames(
     const cv::Mat&, const cv::Mat&,
     const std::vector<cv::KeyPoint>, const std::vector<cv::KeyPoint>,
     const cv::Mat&, const cv::Mat&);
 
 int main() {
-    std::string cmd =
-        "udpsrc port=5000 ! "
-        "application/x-rtp,encoding-name=JPEG,payload=26 ! "
-        "rtpjpegdepay ! "
-        "jpegdec ! "
-        "videoconvert ! "
-        "video/x-raw, format=(string)BGR ! "
-        "videoflip method=1 ! "
-        "appsink";
-
-    auto cap = cv::VideoCapture(cmd);
+    auto cap = cv::VideoCapture(0);
     cv::Mat current_frame, previous_frame;
 
     assert(cap.read(previous_frame));
@@ -41,7 +30,7 @@ int main() {
         if (ret) {
             auto [current_frame_grayscale, current_keypoints, current_descriptors] = extract_features(current_frame);
 
-            match_frames(
+            auto [F, good_privious_keypoints, good_current_keypoints] = match_frames(
                 previous_frame_grayscale, current_frame_grayscale,
                 previous_keypoints, current_keypoints,
                 previous_descriptors, current_descriptors);
@@ -54,14 +43,16 @@ int main() {
             current_descriptors.copyTo(previous_descriptors);
         }
     }
-
     return 0;
 }
 
-void match_frames(
+std::tuple<cv::Mat, std::vector<cv::KeyPoint>, std::vector<cv::KeyPoint>>
+match_frames(
         const cv::Mat& previous_frame, const cv::Mat& current_frame,
         const std::vector<cv::KeyPoint> previous_keypoints, const std::vector<cv::KeyPoint> current_keypoints,
         const cv::Mat& previous_descriptors, const cv::Mat& current_descriptors) {
+    cv::Mat F;
+    return std::make_tuple(F, previous_keypoints, current_keypoints);
 }
 
 std::tuple<cv::Mat, std::vector<cv::KeyPoint>, cv::Mat>
