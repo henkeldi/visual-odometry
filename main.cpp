@@ -51,7 +51,43 @@ match_frames(
         const cv::Mat& previous_frame, const cv::Mat& current_frame,
         const std::vector<cv::KeyPoint> previous_keypoints, const std::vector<cv::KeyPoint> current_keypoints,
         const cv::Mat& previous_descriptors, const cv::Mat& current_descriptors) {
-    cv::Mat F;
+
+    int k = 2;
+    std::vector<std::vector<cv::DMatch>> matches;
+    matcher.knnMatch(current_descriptors, previous_descriptors, matches, k);
+
+    std::vector<cv::DMatch> good_matches;
+    std::vector<cv::Point2f> good_privious_points, good_current_points;
+    std::vector<cv::KeyPoint> good_privious_keypoints, good_current_keypoints;
+
+    for (auto& k_best_matches: matches) {
+        if (k_best_matches.size() == 2) {
+            auto best_match = k_best_matches[0];
+            auto second_best_match = k_best_matches[1];
+            // Lowe's ratio test
+            if (best_match.distance < 0.75 * second_best_match.distance
+                    && best_match.distance < 32) {
+                good_matches.push_back(best_match);
+                good_current_keypoints.push_back(current_keypoints[best_match.queryIdx]);
+                good_privious_keypoints.push_back(previous_keypoints[best_match.trainIdx]);
+                good_current_points.push_back(current_keypoints[best_match.queryIdx].pt);
+                good_privious_points.push_back(previous_keypoints[best_match.trainIdx].pt);
+            }
+        } else if (k_best_matches.size() == 1) {
+            auto best_match = k_best_matches[0];
+            if (best_match.distance < 32) {
+                good_matches.push_back(best_match);
+                good_current_keypoints.push_back(current_keypoints[best_match.queryIdx]);
+                good_privious_keypoints.push_back(previous_keypoints[best_match.trainIdx]);
+                good_current_points.push_back(current_keypoints[best_match.queryIdx].pt);
+                good_privious_points.push_back(previous_keypoints[best_match.trainIdx].pt);                              
+            }
+        }
+    }
+
+    std::vector<uchar> mask;
+    auto F = cv::findFundamentalMat(good_privious_points, good_current_points, mask, cv::FM_RANSAC, 1, 0.99);
+
     return std::make_tuple(F, previous_keypoints, current_keypoints);
 }
 
